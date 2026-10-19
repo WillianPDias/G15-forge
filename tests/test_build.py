@@ -27,7 +27,7 @@ if args == ['-version']:
     print('FAKE xorriso for regression tests only')
     sys.exit(0)
 if '-report_el_torito' in args:
-    print('APM partition type:   2  Apple_HFS')
+    print('APM partition type :   2  Apple_HFS')
     sys.exit(0)
 if os.environ.get('FAKE_FAIL'):
     sys.exit(7)

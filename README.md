@@ -4,6 +4,8 @@ Reproducible Gentoo-based OS engineering project for Dell G15 5511 (i7-11800H, I
 
 ## Current milestone: ISO prototype, not a finished custom Gentoo install
 
+The first experimental ISO was built on 2026-10-19 and verified in diskless BIOS and OVMF UEFI KVM guests, including the embedded Stage3 checksums. Artifact identity, evidence and limitations are recorded in [docs/FIRST_ISO.md](docs/FIRST_ISO.md). The next implementation is tracked in [issue #2](https://github.com/WillianPDias/G15-forge/issues/2).
+
 The build script remasters an **already verified** Gentoo amd64 Minimal ISO, retaining its boot configuration, and embeds the G15Forge profile and (optionally) an authenticated systemd Stage3. It does **not** silently claim the live kernel, initramfs, drivers or installed root filesystem have been optimized. The original Gentoo Live OS is retained.
 
 For full hardware-specific kernel and NVIDIA driver integration, follow docs/ROADMAP.md. Hardware validation must occur on the real Dell using non-destructive live boot before installing anything.

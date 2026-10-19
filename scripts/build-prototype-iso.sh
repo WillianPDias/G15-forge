@@ -62,7 +62,7 @@ xorriso -indev "$iso" -report_el_torito plain -report_system_area plain \
   > "$work/source-boot.txt" 2> "$work/source-inspection.log"
 # Load HFS+ metadata before replay so existing blessings survive remastering.
 load_options=()
-if grep -Eq '^APM partition type:.*Apple_HFS' "$work/source-boot.txt"; then
+if grep -Eq '^APM partition type[[:space:]]*:.*Apple_HFS' "$work/source-boot.txt"; then
   load_options=(-hfsplus on)
 fi
 mkdir -p "$work/G15FORGE/profiles"

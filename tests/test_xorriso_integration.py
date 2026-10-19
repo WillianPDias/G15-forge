@@ -1,5 +1,6 @@
 """Real xorriso hybrid-layout regression; dummy boot images cannot boot a VM."""
 import hashlib
+import importlib.util
 from pathlib import Path
 import shutil
 import subprocess
@@ -7,6 +8,9 @@ import tempfile
 import unittest
 
 REPO = Path(__file__).resolve().parents[1]
+SPEC = importlib.util.spec_from_file_location("iso_verifier", REPO / "scripts/verify_prototype_iso.py")
+VERIFIER = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(VERIFIER)
 
 
 @unittest.skipUnless(shutil.which("xorriso"), "real xorriso not installed")
@@ -51,3 +55,11 @@ class HybridLayout(unittest.TestCase):
             with output.open("rb") as stream:
                 stream.seek(512)
                 self.assertEqual(stream.read(8), b"EFI PART")
+            # A real generated image must be rejected if its GPT header is corrupted.
+            with output.open("r+b") as stream:
+                stream.seek(528)
+                old = stream.read(1)
+                stream.seek(528)
+                stream.write(bytes([old[0] ^ 1]))
+            with self.assertRaisesRegex(ValueError, "GPT header CRC mismatch"):
+                VERIFIER.inspect_gpt(output)
