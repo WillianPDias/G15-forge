@@ -9,10 +9,12 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+      - name: Install validation tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y shellcheck xorriso
       - name: Shell syntax and smoke checks
         run: bash tests/smoke.sh
       - name: ShellCheck
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y shellcheck
           shellcheck scripts/*.sh tests/smoke.sh

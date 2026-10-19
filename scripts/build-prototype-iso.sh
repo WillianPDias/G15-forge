@@ -33,7 +33,7 @@ done
 if [[ -n "$stage" ]]; then
   [[ "$stage_sha" =~ ^[a-fA-F0-9]{64}$ ]] || fail "invalid Stage3 sha256"
 fi
-for bin in xorriso sha256sum mktemp cp realpath ln tee; do command -v "$bin" >/dev/null || fail "missing executable: $bin"; done
+for bin in xorriso sha256sum mktemp cp realpath ln tee grep; do command -v "$bin" >/dev/null || fail "missing executable: $bin"; done
 [[ -f "$iso" && ! -L "$iso" ]] || fail "ISO must be a regular non-symlink file"
 if [[ -n "$stage" ]]; then [[ -f "$stage" && ! -L "$stage" ]] || fail "Stage3 must be a regular non-symlink file"; fi
 iso=$(realpath -e -- "$iso")
@@ -58,6 +58,13 @@ root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
 work=$(mktemp -d -- "$outdir/.g15forge-build-XXXXXXXX")
 tmpout="$work/image.iso"
 trap 'printf "BUILD_WORKDIR=%s\n" "$work" >&2' EXIT
+xorriso -indev "$iso" -report_el_torito plain -report_system_area plain \
+  > "$work/source-boot.txt" 2> "$work/source-inspection.log"
+# Load HFS+ metadata before replay so existing blessings survive remastering.
+load_options=()
+if grep -Eq '^APM partition type:.*Apple_HFS' "$work/source-boot.txt"; then
+  load_options=(-hfsplus on)
+fi
 mkdir -p "$work/G15FORGE/profiles"
 cp -- "$root/overlays/iso/README.txt" "$work/G15FORGE/README.txt"
 cp -- "$root/profiles/dell-g15-5511/make.conf" "$work/G15FORGE/profiles/make.conf"
@@ -95,7 +102,9 @@ fi
 # Preserve existing boot records/configuration of the Gentoo hybrid ISO.
 # xorriso must validate and re-emit the boot descriptors; do not claim
 # UEFI or BIOS boots successfully until real VM tests pass.
-xorriso -indev "$iso" -outdev "$tmpout" \
+# A distributable hybrid image must start at LBA 0. The default emulated TOC
+# starts a session at LBA 32 and breaks EFI/HFS+ GPT replay in libisofs 1.5.6.
+xorriso -compliance no_emul_toc "${load_options[@]}" -indev "$iso" -outdev "$tmpout" \
   -map "$work/G15FORGE" /G15FORGE \
   -boot_image any replay -commit 2>&1 | tee "$work/xorriso-build.log"
 [[ -s "$tmpout" ]] || fail "xorriso produced an empty image"
