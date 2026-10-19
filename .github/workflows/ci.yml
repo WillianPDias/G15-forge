@@ -12,9 +12,9 @@ jobs:
       - name: Install validation tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y shellcheck xorriso
+          sudo apt-get install -y shellcheck xorriso qemu-utils
       - name: Shell syntax and smoke checks
         run: bash tests/smoke.sh
       - name: ShellCheck
         run: |
-          shellcheck scripts/*.sh tests/smoke.sh
+          shellcheck scripts/*.sh guest/*.sh tests/smoke.sh
