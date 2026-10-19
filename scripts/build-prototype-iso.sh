@@ -12,7 +12,7 @@ the running live kernel/rootfs. Requires xorriso and sha256sum.
 HELP
 }
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 2; }
-iso= out= iso_sha= stage= stage_sha=
+iso='' ; out='' ; iso_sha='' ; stage='' ; stage_sha=''
 while (($#)); do
   case "$1" in
     --iso|--iso-sha256|--stage3|--stage3-sha256|--out)
