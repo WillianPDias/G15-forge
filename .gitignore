@@ -1,0 +1,15 @@
+*.iso
+*.qcow2
+*.raw
+*.img
+*.xz
+*.tar
+*.key
+*.pem
+.env
+.env.*
+*.log
+out/
+dist/
+work/
+__pycache__/

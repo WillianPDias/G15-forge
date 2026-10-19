@@ -1,7 +1,41 @@
 # G15Forge OS
 
-Gentoo-based, reproducible Dell G15 5511 Linux distribution project.
+Reproducible Gentoo-based OS engineering project for Dell G15 5511 (i7-11800H, Intel UHD, NVIDIA RTX 3060 Laptop, 32 GiB RAM).
 
-Development takes place in reviewed feature branches. The original Pop!_OS host, physical NVMe drives, and existing VM images are not modified by repository scripts.
+## Current milestone: ISO prototype, not a finished custom Gentoo install
 
-Status: **development; no production-ready ISO yet**.
+The first experimental ISO was built on 2026-10-19 and verified in diskless BIOS and OVMF UEFI KVM guests, including the embedded Stage3 checksums. Artifact identity, evidence and limitations are recorded in [docs/FIRST_ISO.md](docs/FIRST_ISO.md). The next implementation is tracked in [issue #2](https://github.com/WillianPDias/G15-forge/issues/2).
+
+The build script remasters an **already verified** Gentoo amd64 Minimal ISO, retaining its boot configuration, and embeds the G15Forge profile and (optionally) an authenticated systemd Stage3. It does **not** silently claim the live kernel, initramfs, drivers or installed root filesystem have been optimized. The original Gentoo Live OS is retained.
+
+For full hardware-specific kernel and NVIDIA driver integration, follow docs/ROADMAP.md. Hardware validation must occur on the real Dell using non-destructive live boot before installing anything.
+
+## Prerequisites
+
+Linux host with xorriso, sha256sum, bash, coreutils, sufficient free storage. Official Gentoo live ISO independently authenticated using Gentoo's signing keys.
+
+## Build a prototype
+
+    bash tests/smoke.sh
+    bash scripts/build-prototype-iso.sh --help
+
+Then set paths explicitly and build:
+
+    bash scripts/build-prototype-iso.sh \
+      --iso "$HOME/G15Forge-VM/iso/install-amd64-minimal-20261018T124555Z.iso" \
+      --iso-sha256 "INSERT_VERIFIED_ISO_SHA256" \
+      --stage3 "$HOME/Downloads/G15Forge-Gentoo-Stage3-v0.4/artifacts/stage3/stage3-amd64-systemd-20261018T124555Z.tar.xz" \
+      --stage3-sha256 "01ed7040d5768b5a056d3c0f7d38b0db23e8c1c4e28a57736d92ea9e30342217" \
+      --out "$HOME/G15Forge-VM/iso/g15forge-prototype-v0.1.iso"
+
+The ISO SHA-256 MUST come from a trustworthy previously verified record; the script refuses missing or malformed hashes. This repository intentionally does not embed an unverified ISO digest.
+
+The build retains its unique `.g15forge-build-*` work directory and tool log for diagnostics, embeds provenance and payload checksums, and publishes the ISO atomically without replacing existing files. Existing checksum/provenance sidecars also cause a refusal. Retained work directories consume additional storage.
+
+Build and ISO inspection are separate from boot testing. Start with a diskless VM, using the commands in [docs/VALIDATION.md](docs/VALIDATION.md). The build does not attach NVMe or other host block devices.
+
+## Safety
+
+Never run destructive installation commands on host disks. Do not remove Codex Security Guard protections. No auto-apply for LLM-proposed kernel/bootloader changes. Prototype ISO generation writes a new ordinary file only; refuses overwriting outputs.
+
+See docs/HARDWARE.md and docs/ROADMAP.md.
