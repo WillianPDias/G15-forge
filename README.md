@@ -28,7 +28,9 @@ Then set paths explicitly and build:
 
 The ISO SHA-256 MUST come from a trustworthy previously verified record; the script refuses missing or malformed hashes. This repository intentionally does not embed an unverified ISO digest.
 
-Build and ISO inspection are separate from boot testing: use a fresh QEMU overlay and validate UEFI boot, payload access and both ISO boot paths. The build does not attach NVMe or other host block devices.
+The build retains its unique `.g15forge-build-*` work directory and tool log for diagnostics, embeds provenance and payload checksums, and publishes the ISO atomically without replacing existing files. Existing checksum/provenance sidecars also cause a refusal. Retained work directories consume additional storage.
+
+Build and ISO inspection are separate from boot testing. Start with a diskless VM, using the commands in [docs/VALIDATION.md](docs/VALIDATION.md). The build does not attach NVMe or other host block devices.
 
 ## Safety
 
