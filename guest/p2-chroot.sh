@@ -12,9 +12,15 @@ mkdir -p /etc/portage/package.license
 printf 'sys-firmware/intel-microcode intel-ucode\n' > /etc/portage/package.license/g15forge-p2
 emerge-webrsync
 [[ $(readlink -f /etc/portage/make.profile) == */systemd ]] || { echo 'P2_ERROR=non-systemd profile'; exit 2; }
-# The upstream binhost supplies signatures; never accept unsigned packages or
-# silently fall back to compiling arbitrary dependency changes in this milestone.
-emerge --getbinpkgonly --ask=n sys-fs/dosfstools sys-fs/e2fsprogs sys-kernel/dracut sys-kernel/gentoo-kernel-bin sys-boot/grub sys-firmware/intel-microcode
+# The upstream binhost supplies signatures; never accept unsigned packages.
+# The official binhost publishes no gentoo-kernel-bin binary, so the reviewed
+# Gentoo distribution kernel (gentoo-kernel) is built from the signed sources
+# that the same binhost provides. intel-microcode carries the intel-ucode
+# license restriction that blocks binary redistribution through the binhost,
+# so it is also built from its signed distfile; every other package stays
+# binary-only.
+emerge --getbinpkgonly --ask=n sys-fs/dosfstools sys-fs/e2fsprogs sys-kernel/dracut sys-boot/grub
+emerge --getbinpkg --ask=n sys-kernel/gentoo-kernel sys-firmware/intel-microcode
 kver=$(find /lib/modules -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort -V | tail -n 1)
 [[ -n $kver ]] || { echo 'P2_ERROR=no installed kernel modules'; exit 2; }
 machine=$(cat /etc/machine-id)

@@ -171,5 +171,117 @@ class Guards(unittest.TestCase):
                 subprocess.run(["bash", "-n", str(path)], check=True)
 
 
+class Recipe(unittest.TestCase):
+    """Static regression locks for the reviewed installation recipe.
+
+    Lab-bound scripts cannot change after preparation, so these tests pin the
+    package policy that the real upstream binhost forced: binary-only
+    installation wherever signed binaries exist, and a source build only for
+    the two packages the binhost cannot redistribute (gentoo-kernel,
+    intel-microcode). They also lock the independent-boot essentials so a
+    future edit cannot silently weaken them.
+    """
+
+    def chroot(self):
+        return (REPO / "guest/p2-chroot.sh").read_text()
+
+    def test_binary_only_line_excludes_source_only_packages(self):
+        line = next(l for l in self.chroot().splitlines() if l.startswith("emerge --getbinpkgonly "))
+        for package in ("sys-fs/dosfstools", "sys-fs/e2fsprogs", "sys-kernel/dracut", "sys-boot/grub"):
+            self.assertIn(package, line)
+        for absent in ("gentoo-kernel", "intel-microcode"):
+            self.assertNotIn(absent, line)
+
+    def test_kernel_and_microcode_built_from_signed_sources(self):
+        line = next(l for l in self.chroot().splitlines() if l.startswith("emerge --getbinpkg "))
+        self.assertIn("sys-kernel/gentoo-kernel", line)
+        self.assertIn("sys-firmware/intel-microcode", line)
+
+    def test_signature_verification_stays_mandatory(self):
+        text = (REPO / "guest/p2-installer.sh").read_text()
+        self.assertIn('FEATURES="${FEATURES} binpkg-request-signature"', text)
+        self.assertIn("sync-webrsync-verify-signature = true", text)
+        self.assertIn("verify-signature = true", text)
+        self.assertNotIn("verify-signature = false", text)
+        self.assertNotIn("sync-webrsync-verify-signature = false", text)
+
+    def test_dracut_generic_with_virtio_and_early_microcode(self):
+        text = self.chroot()
+        self.assertIn('hostonly="no"', text)
+        self.assertIn('early_microcode="yes"', text)
+        self.assertIn('add_drivers+=" virtio_pci virtio_blk virtio_net "', text)
+
+    def test_grub_removable_fallback_without_nvram(self):
+        line = next(l for l in self.chroot().splitlines() if l.startswith("grub-install"))
+        self.assertIn("--target=x86_64-efi", line)
+        self.assertIn("--removable", line)
+        self.assertIn("--no-nvram", line)
+
+    def test_installed_verification_service_enabled(self):
+        line = next(l for l in self.chroot().splitlines() if l.startswith("systemctl enable"))
+        for unit in ("systemd-networkd.service", "systemd-resolved.service", "g15forge-p2-verify.service"):
+            self.assertIn(unit, line)
+
+    def test_installed_boot_requires_pid1_systemd_and_no_live_media(self):
+        text = (REPO / "guest/p2-installed-verify.sh").read_text()
+        self.assertIn("[[ $(cat /proc/1/comm) == systemd ]]", text)
+        self.assertIn("iso9660", text)
+        self.assertIn("P2_SYSTEMD_PASS", text)
+        self.assertIn("systemctl poweroff", text)
+
+    def test_documented_stage3_hash_matches_controller(self):
+        self.assertIn(p2.STAGE_SHA, (REPO / "docs/P2.md").read_text())
+
+
+class Report(unittest.TestCase):
+    """The read-only evidence summarizer must report drift, never write."""
+
+    def fixture(self, scripts=None):
+        import p2_report
+        (REPO / "out").mkdir(exist_ok=True)
+        lab = Path(tempfile.mkdtemp(prefix="p2-report-test-", dir=REPO / "out"))
+        self.addCleanup(shutil.rmtree, lab, ignore_errors=True)
+        disk = lab / "disk.qcow2"
+        disk.write_bytes(b"blank")
+        (lab / "checkpoint-blank.qcow2").write_bytes(b"blank")
+        (lab / "checkpoint-nvram.fd").write_bytes(b"nvram")
+        state = {"lab_id": "b" * 32, "serial": "G15P2" + "b" * 12,
+                 "disk": {"path": str(disk), "inode": disk.stat().st_ino, "bytes": disk.stat().st_size,
+                          "mode": oct(disk.stat().st_mode & 0o777), "sha256": p2.sha(disk)},
+                 "checkpoint": {"sha256": p2.sha(lab / "checkpoint-blank.qcow2")},
+                 "checkpoint_nvram": {"sha256": p2.sha(lab / "checkpoint-nvram.fd")},
+                 "scripts": scripts if scripts is not None else {"guest/p2-identity.sh": p2.sha(REPO / "guest/p2-identity.sh")}}
+        p2.write_new(lab / "state.json", state)
+        return p2_report, lab, state
+
+    def test_summarize_reports_evidence_without_writing(self):
+        report, lab, state = self.fixture()
+        before = sorted(path.name for path in lab.iterdir())
+        text = report.summarize(lab)
+        self.assertIn("lab_id=" + state["lab_id"], text)
+        self.assertIn("serial=" + state["serial"], text)
+        self.assertIn("disk inode=" + str(state["disk"]["inode"]), text)
+        self.assertIn("checkpoint match=YES", text)
+        self.assertIn("bound scripts unchanged=YES", text)
+        self.assertIn("phase diagnose: not executed", text)
+        self.assertIn("review: absent", text)
+        self.assertEqual(before, sorted(path.name for path in lab.iterdir()))
+
+    def test_summarize_exposes_checkpoint_and_script_drift(self):
+        report, lab, state = self.fixture(scripts={"guest/p2-identity.sh": "0" * 64})
+        state["checkpoint"]["sha256"] = "1" * 64
+        (lab / "state.json").unlink()
+        p2.write_new(lab / "state.json", state)
+        text = report.summarize(lab)
+        self.assertIn("checkpoint match=NO", text)
+        self.assertIn("bound scripts unchanged=NO guest/p2-identity.sh", text)
+
+    def test_summarize_rejects_labs_outside_out(self):
+        import p2_report
+        with tempfile.TemporaryDirectory() as outside:
+            with self.assertRaisesRegex(ValueError, "direct child"):
+                p2_report.summarize(outside)
+
+
 if __name__ == "__main__":
     unittest.main()
