@@ -41,3 +41,7 @@ Build and ISO inspection are separate from boot testing. Start with a diskless V
 Never run destructive installation commands on host disks. Do not remove Codex Security Guard protections. No auto-apply for LLM-proposed kernel/bootloader changes. Prototype ISO generation writes a new ordinary file only; refuses overwriting outputs.
 
 See docs/HARDWARE.md and docs/ROADMAP.md.
+
+## P4: original Gentoo systemd Live ISO candidate
+
+Development of the first **own Gentoo runtime** (not P1's remastered Gentoo Live) is in [docs/P4-LIVE-ISO.md](docs/P4-LIVE-ISO.md). The additive offline assembler is `scripts/p4_live_iso.py`, with guarded inputs, a dedicated Dracut Live initramfs recipe, BIOS/UEFI GRUB authoring, and mock/unit checks. **No real P4 ISO boot or Dell hardware test is claimed yet.** The old P2 failed install image and checkpoints are not inputs and must remain preserved.

@@ -12,7 +12,7 @@ jobs:
       - name: Install validation tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y shellcheck xorriso qemu-utils
+          sudo apt-get install -y shellcheck xorriso qemu-utils squashfs-tools grub-common grub-pc-bin grub-efi-amd64-bin mtools
       - name: Shell syntax and smoke checks
         run: bash tests/smoke.sh
       - name: ShellCheck
