@@ -139,7 +139,7 @@ def inspect_iso(candidate):
     pvd = command(["xorriso", "-indev", str(candidate), "-pvd_info"])
     require(LABEL in pvd, "wrong ISO volume ID")
     inventory = command(["xorriso", "-indev", str(candidate), "-find", "/",
-                         "-type", "f", "-print"])
+                         "-type", "f", "-exec", "echo", "--"])
     for expected in ("/boot/vmlinuz", "/boot/initramfs.img",
                      "/boot/grub/grub.cfg", "/LiveOS/squashfs.img",
                      "/G15FORGE/build.json"):
